@@ -9,6 +9,7 @@ import wandb
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
+import numpy as np
 
 
 def get_logger(name=__name__, level=logging.INFO) -> logging.Logger:
@@ -175,3 +176,20 @@ def finish(
     for lg in logger:
         if isinstance(lg, WandbLogger):
             wandb.finish()
+
+def calculate_mean(train_dataset, CHANNEL_NUM):
+    pixel_num = 0  # store all pixel number in the dataset
+    channel_sum = np.zeros(CHANNEL_NUM)
+    channel_sum_squared = np.zeros(CHANNEL_NUM)
+
+    for i, data in enumerate(train_dataset):
+        im = data['scan']
+        im = im / 255.0
+        pixel_num += (im.size / CHANNEL_NUM)
+        channel_sum += np.sum(im, axis=(0, 1))
+        channel_sum_squared += np.sum(np.square(im), axis=(0, 1))
+
+    mean = channel_sum / pixel_num
+    std = np.sqrt(channel_sum_squared / pixel_num - np.square(mean))
+    print(f'Mean of the dataset={mean}, STD of the dataset={std}')
+    return mean, std

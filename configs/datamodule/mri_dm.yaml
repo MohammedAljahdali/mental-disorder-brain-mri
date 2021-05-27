@@ -1,0 +1,8 @@
+_target_: src.datamodules.mri_datamodule.MRIDataModule
+
+dataset_dir: ${work_dir}/../../../brain-data/ds000030-download
+#data_dir: ${data_dir} # data_dir is specified in config.yaml
+batch_size: 2
+train_val_test_split: [0.7, 0.15, 0.15]
+num_workers: 0
+pin_memory: False

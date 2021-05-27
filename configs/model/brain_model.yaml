@@ -1,0 +1,5 @@
+_target_: src.models.brain_model.BrainModel
+
+num_classes: 4
+lr: 0.001
+weight_decay: 0.0005
