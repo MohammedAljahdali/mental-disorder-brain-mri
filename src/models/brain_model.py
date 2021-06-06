@@ -4,7 +4,8 @@ import torch
 from pytorch_lightning import LightningModule
 from torchmetrics.classification.accuracy import Accuracy
 
-from src.models.modules.brain_resnet import BrainResNet
+# from src.models.modules.brain_resnet2d import BrainResNet
+from src.models.modules.brain_resnet3d import BrainResNet
 
 
 class BrainModel(LightningModule):
@@ -36,9 +37,19 @@ class BrainModel(LightningModule):
         self.save_hyperparameters()
 
         self.model = BrainResNet(hparams=self.hparams)
+        # print(self.model)
 
         # loss function
-        self.criterion = torch.nn.CrossEntropyLoss()
+        # TODO: handle weights here
+        labels_counter = kwargs["labels_counter"]
+        weights = list(range(len(labels_counter)))
+        for pair in labels_counter.items():
+            weights[pair[0]] = pair[1]
+        normedWeights = [1 - (x / sum(weights)) for x in weights]
+        print(normedWeights)
+        normedWeights = [0.3, 0.8, 0.8, 0.8]
+        normedWeights = torch.FloatTensor(normedWeights)
+        self.criterion = torch.nn.CrossEntropyLoss(weight=normedWeights)
 
         # use separate metric instance for train, val and test step
         # to ensure a proper reduction over the epoch
@@ -46,12 +57,16 @@ class BrainModel(LightningModule):
         self.val_accuracy = Accuracy()
         self.test_accuracy = Accuracy()
 
+    # def on_fit_start(self):
+    #     for l in self.model.fcs:
+    #         l.to(self.device)
+
     def forward(self, x: torch.Tensor):
         return self.model(x)
 
     def step(self, batch: Any):
         x, y = batch["scan"], batch["label"]
-        logits = self.forward(x.unsqueeze(1))
+        logits = self.forward(x)
         loss = self.criterion(logits, y)
         preds = torch.argmax(logits, dim=1)
         return loss, preds, y
@@ -106,6 +121,10 @@ class BrainModel(LightningModule):
         See examples here:
             https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#configure-optimizers
         """
-        return torch.optim.Adam(
-            params=self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay
+        return torch.optim.SGD(
+            params=self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay,
+            nesterov=True, momentum=0.9
         )
+        # return torch.optim.Adam(
+        #     params=self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay,
+        # )

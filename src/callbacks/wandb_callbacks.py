@@ -225,7 +225,7 @@ class LogImagePredictions(Callback):
 
             # get a validation batch from the validation dat loader
             val_samples = next(iter(trainer.datamodule.val_dataloader()))
-            val_imgs, val_labels = val_samples
+            val_imgs, val_labels = val_samples["scan"], val_samples["label"]
 
             # run the batch through the network
             val_imgs = val_imgs.to(device=pl_module.device)

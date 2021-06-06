@@ -66,13 +66,23 @@ class BrianScansT1w(Dataset):
     def __init__(self, dataset_path, transform=None):
         self.paths = glob(f'{dataset_path}/*/anat/sub-*_T1w.nii.gz')
         self.paths = [x for x in self.paths if os.path.basename(x) != 'sub-50005_T1w.nii.gz']
-        self.participants = pd.read_csv(f'{dataset_path}/participants.tsv', sep="\t")
+        participants = pd.read_csv(f'{dataset_path}/participants.tsv', sep="\t")
         self.transform = transform
         self.num_channels = 176
-        self.classes = set(self.participants.diagnosis.values)
+        self.classes = set(participants.diagnosis.values)
         self.num_classes = len(self.classes)
-        self.encoder = dict(zip(self.classes, range(self.num_classes)))
+        self.encoder = {'ADHD':2, 'BIPOLAR': 3, 'CONTROL': 0, 'SCHZ': 1}
         self.decoder = dict((v, k) for k, v in self.encoder.items())
+        self.labels = []
+        self.ages = []
+        self.genders = []
+        for path in self.paths:
+            sub = os.path.split(os.path.dirname(os.path.dirname(path)))[1]
+            row = participants.query(f"participant_id == '{sub}'")
+            self.labels.append(self.encoder[row.values[0][1]])
+            self.genders.append(0 if row.values[0][3] == 'M' else 1)
+            self.ages.append(row.values[0][2])
+        self.labels_counter = Counter(self.labels)
 
     def __len__(self):
         return len(self.paths)
@@ -81,11 +91,9 @@ class BrianScansT1w(Dataset):
         path = self.paths[index]
         obj = nib.load(path)
         obj_data = obj.get_fdata()
-        sub = os.path.split(os.path.dirname(os.path.dirname(path)))[1]
-        row = self.participants.query(f"participant_id == '{sub}'")
-        label = self.encoder[row.values[0][1]]
-        gender = row.values[0][3]
-        age = row.values[0][2]
+        label = self.labels[index]
+        gender = self.genders[index]
+        age = self.ages[index]
         scan = np.uint8(obj_data).transpose(1, 2, 0)
 
         if self.transform:
